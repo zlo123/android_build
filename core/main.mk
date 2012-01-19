@@ -222,7 +222,7 @@ user_variant := $(filter userdebug user,$(TARGET_BUILD_VARIANT))
 enable_target_debugging := true
 ifneq (,$(user_variant))
   # Target is secure in user builds.
-  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=1
+  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=0
 
   tags_to_install := user
   ifeq ($(user_variant),userdebug)
@@ -230,7 +230,8 @@ ifneq (,$(user_variant))
     tags_to_install += debug
 
     # Enable Dalvik lock contention logging for userdebug builds.
-    ADDITIONAL_BUILD_PROPERTIES += dalvik.vm.lockprof.threshold=500
+    ADDITIONAL_BUILD_PROPERTIES += persist.sys.strictmode.visual=false
+    ADDITIONAL_BUILD_PROPERTIES += dalvik.vm.lockprof.threshold=750
   else
     # Disable debugging in plain user builds.
     enable_target_debugging :=
@@ -331,6 +332,7 @@ endif
 endif
 
 ADDITIONAL_BUILD_PROPERTIES += net.bt.name=Android
+ADDITIONAL_BUILD_PROPERTIES += ro.HOME_APP_ADJ=1
 
 # enable vm tracing in files for now to help track
 # the cause of ANRs in the content process
@@ -856,7 +858,7 @@ findbugs: $(INTERNAL_FINDBUGS_HTML_TARGET) $(INTERNAL_FINDBUGS_XML_TARGET)
 
 .PHONY: clean
 clean:
-	@rm -rf $(OUT_DIR)
+	@rm -rf $(OUT_DIR)/*
 	@echo "Entire build directory removed."
 
 .PHONY: clobber

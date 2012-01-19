@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2007 The Android Open Source Project
+# Copyright (C) 2011 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,27 +20,24 @@
 PRODUCT_POLICY := android.policy_phone
 
 PRODUCT_PACKAGES := \
-    DeskClock \
     AlarmProvider \
     Bluetooth \
     Calculator \
     Calendar \
     CertInstaller \
+    DeskClock \
     DrmProvider \
     Email \
     Exchange \
     Gallery2 \
     LatinIME \
-    Launcher2 \
-    Music \
-    MusicFX \
-    Provision \
     Phone \
-    QuickSearchBox \
     Settings \
+    Stk \
     Sync \
     SystemUI \
     Updater \
+    VoiceDialer \
     CalendarProvider \
     SyncProvider \
     bluetooth-health \
@@ -51,10 +48,7 @@ PRODUCT_PACKAGES += \
     icu.dat
 
 PRODUCT_PACKAGES += \
-    librs_jni \
-    libvideoeditor_jni \
-    libvideoeditorplayer \
-    libvideoeditor_core
+    librs_jni
 
 PRODUCT_PACKAGES += \
     audio.primary.default \

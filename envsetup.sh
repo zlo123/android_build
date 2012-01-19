@@ -388,11 +388,6 @@ function add_lunch_combo()
     LUNCH_MENU_CHOICES=(${LUNCH_MENU_CHOICES[@]} $new_combo)
 }
 
-# add the default one here
-add_lunch_combo full-eng
-add_lunch_combo full_x86-eng
-add_lunch_combo vbox_x86-eng
-
 function print_lunch_menu()
 {
     local uname=$(uname)
@@ -1052,6 +1047,26 @@ function set_java_home() {
     fi
 }
 
+# Custom build script for LiquidSmoothROMs
+function liquid() {
+    T=$(gettop)
+    if [ ! "$T" ]; then
+        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
+        return
+    fi
+
+    # Set cache compression
+    $T/prebuilt/linux-x86/ccache/ccache -M 10G
+    export USE_CCACHE=1
+
+    # build in support for bootchart; see http://www.bootchart.org/ and explaination @ http://bit.ly/wQEe8j
+    export INIT_BOOTCHART=true
+    INIT_BOOTCHART=true
+
+    cd $T
+    lunch
+}
+
 if [ "x$SHELL" != "x/bin/bash" ]; then
     case `ps -o command -p $$` in
         *bash*)
@@ -1065,7 +1080,7 @@ fi
 # Execute the contents of any vendorsetup.sh files we can find.
 for f in `/bin/ls vendor/*/vendorsetup.sh vendor/*/*/vendorsetup.sh device/*/*/vendorsetup.sh 2> /dev/null`
 do
-    echo "including $f"
+    echo "pimp slapping $f ..."
     . $f
 done
 unset f
