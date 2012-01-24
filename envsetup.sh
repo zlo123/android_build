@@ -1056,8 +1056,10 @@ function liquid() {
     fi
 
     # Set cache compression
-    $T/prebuilt/linux-x86/ccache/ccache -M 10G
     export USE_CCACHE=1
+    export CCACHE_DIR=$T/.ccache
+    $T/prebuilt/linux-x86/ccache/ccache -M 20G
+    watch -n1 -d prebuilt/linux-x86/ccache/ccache -s
 
     # build in support for bootchart; see http://www.bootchart.org/ and explaination @ http://bit.ly/wQEe8j
     export INIT_BOOTCHART=true
