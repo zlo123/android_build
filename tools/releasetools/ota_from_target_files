@@ -412,7 +412,7 @@ def WriteFullOTAPackage(input_zip, output_zip):
   script.ShowProgress(0.5, 40)
   script.Print("Installing System...")
   script.UnpackPackageDir("system", "/system")
-  script.Print("Creating Symlinks...") 
+  script.Print("Creating Symlinks...")
   (symlinks, retouch_files) = CopySystemFiles(input_zip, output_zip)
   script.MakeSymlinks(symlinks)
 
@@ -426,17 +426,17 @@ def WriteFullOTAPackage(input_zip, output_zip):
 
   Item.GetMetadata(input_zip)
   Item.Get("system").SetPermissions(script)
-  script.SetPermissionsRecursive("/system/etc/init.d", 0, 2000, 0755, 0755) 
 
   common.CheckSize(boot_img.data, "boot.img", OPTIONS.info_dict)
   common.ZipWriteStr(output_zip, "boot.img", boot_img.data)
   script.ShowProgress(0.2, 0)
-
+  script.Print("Writing Boot Image...")
+  
   script.ShowProgress(0.2, 10)
   script.WriteRawImage("/boot", "boot.img")
 
   script.ShowProgress(0.1, 0)
-  script.Print("Installation Completed!")
+  script.Print("Installation Finished!")
   device_specific.FullOTA_InstallEnd()
 
   script.UnmountAll()
