@@ -1198,10 +1198,9 @@ $(INTERNAL_OTA_PACKAGE_TARGET): $(BUILT_TARGET_FILES_PACKAGE) $(OTATOOLS)
 
 .PHONY: otapackage
 otapackage: $(INTERNAL_OTA_PACKAGE_TARGET)
-
 ifneq ($(TARGET_CUSTOM_RELEASETOOL),)
 	@echo "Running releasetool"
-	$(TARGET_CUSTOM_RELEASETOOL)
+	$(hide) $(TARGET_CUSTOM_RELEASETOOL)
 else
     $(hide) ./vendor/liquid/tools/squisher
 endif
