@@ -13,7 +13,7 @@ endif
 ifneq "" "$(filter eng.%,$(BUILD_NUMBER))"
   # BUILD_NUMBER has a timestamp in it, which means that
   # it will change every time.  Pick a stable value.
-  FILE_NAME_VER := beta2
+  FILE_NAME_VER := beta3
   FILE_NAME_TAG := eng.$(FILE_NAME_VER)
 endif
 
