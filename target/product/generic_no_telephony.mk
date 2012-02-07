@@ -42,7 +42,6 @@ PRODUCT_PACKAGES := \
     CalendarProvider \
     SyncProvider \
     bluetooth-health \
-    hostapd \
     wpa_supplicant.conf
 
 PRODUCT_PACKAGES += \
