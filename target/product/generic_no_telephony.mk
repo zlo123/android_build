@@ -38,7 +38,6 @@ PRODUCT_PACKAGES := \
     Sync \
     SystemUI \
     Updater \
-    VoiceDialer \
     CalendarProvider \
     SyncProvider \
     bluetooth-health \
