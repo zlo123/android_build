@@ -402,7 +402,7 @@ def WriteFullOTAPackage(input_zip, output_zip):
   script.Print("   /_  _\ /_  _\  /_  _\  /_  _\  /_  _\      ")
   script.Print("     \/     \/      \/      \/      \/        ")
   script.Print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
-  script.Print("   <%%% Liquid-Ice-Cream-Sandwich-BETA %%%>   ")
+  script.Print("   <%%% Liquid-Ice-Cream-Sandwich-ICS %%%>    ")
   script.Print("           <%%% By TeamLiquid %%%>            ")
   script.Print("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
   script.Print("Erasing System...")
