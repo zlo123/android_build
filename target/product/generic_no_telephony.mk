@@ -34,9 +34,12 @@ PRODUCT_PACKAGES := \
     Phone \
     Settings \
     Stk \
+    Superuser \
+    su \
     Sync \
     SystemUI \
     Updater \
+    VoiceDialer \
     CalendarProvider \
     SyncProvider \
     bluetooth-health \
