@@ -359,7 +359,7 @@ def SignFile(input_name, output_name, key, password, align=None,
   x = subprocess.Popen(['uname', '-m'])
   p = string.rstrip("x")
   if p == "x86_64":
-    cmd = ["java", "-Xmx2048m", "-jar",
+    cmd = ["java", "-Xmx512m", "-jar",
            os.path.join(OPTIONS.search_path, "framework", "signapk.jar")]
   else:
     cmd = ["java", "-Xmx1024m", "-jar",
