@@ -17,6 +17,7 @@
 PRODUCT_BRAND := generic
 PRODUCT_DEVICE := generic
 PRODUCT_NAME := core
+LOCAL_MODULE_TAGS := optional
 
 PRODUCT_PACKAGES := \
     ApplicationsProvider \
