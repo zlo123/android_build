@@ -20,12 +20,12 @@
 PRODUCT_POLICY := android.policy_phone
 
 PRODUCT_PACKAGES := \
-    DeskClock \
     AlarmProvider \
     Bluetooth \
     Calculator \
     Calendar \
     CertInstaller \
+    DeskClock \
     DrmProvider \
     Email \
     Exchange \
@@ -51,10 +51,7 @@ PRODUCT_PACKAGES += \
     icu.dat
 
 PRODUCT_PACKAGES += \
-    librs_jni \
-    libvideoeditor_jni \
-    libvideoeditorplayer \
-    libvideoeditor_core
+    librs_jni
 
 PRODUCT_PACKAGES += \
     audio.primary.default \

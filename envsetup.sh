@@ -798,4 +798,309 @@ case `uname -s` in
         }
 
         ;;
+    *)
+        function mgrep()
+        {
+            find . -name .repo -prune -o -name .git -prune -o -regextype posix-egrep -iregex '(.*\/Makefile|.*\/Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -type f -print0 | xargs -0 grep --color -n "$@"
+        }
 
+        function treegrep()
+        {
+            find . -name .repo -prune -o -name .git -prune -o -regextype posix-egrep -iregex '.*\.(c|h|cpp|S|java|xml)' -type f -print0 | xargs -0 grep --color -n -i "$@"
+        }
+
+        ;;
+esac
+
+function getprebuilt
+{
+    get_abs_build_var ANDROID_PREBUILTS
+}
+
+function tracedmdump()
+{
+    T=$(gettop)
+    if [ ! "$T" ]; then
+        echo "Couldn't locate the top of the tree.  Try setting TOP."
+        return
+    fi
+    local prebuiltdir=$(getprebuilt)
+    local KERNEL=$T/prebuilt/android-arm/kernel/vmlinux-qemu
+
+    local TRACE=$1
+    if [ ! "$TRACE" ] ; then
+        echo "usage:  tracedmdump  tracename"
+        return
+    fi
+
+    if [ ! -r "$KERNEL" ] ; then
+        echo "Error: cannot find kernel: '$KERNEL'"
+        return
+    fi
+
+    local BASETRACE=$(basename $TRACE)
+    if [ "$BASETRACE" = "$TRACE" ] ; then
+        TRACE=$ANDROID_PRODUCT_OUT/traces/$TRACE
+    fi
+
+    echo "post-processing traces..."
+    rm -f $TRACE/qtrace.dexlist
+    post_trace $TRACE
+    if [ $? -ne 0 ]; then
+        echo "***"
+        echo "*** Error: malformed trace.  Did you remember to exit the emulator?"
+        echo "***"
+        return
+    fi
+    echo "generating dexlist output..."
+    /bin/ls $ANDROID_PRODUCT_OUT/system/framework/*.jar $ANDROID_PRODUCT_OUT/system/app/*.apk $ANDROID_PRODUCT_OUT/data/app/*.apk 2>/dev/null | xargs dexlist > $TRACE/qtrace.dexlist
+    echo "generating dmtrace data..."
+    q2dm -r $ANDROID_PRODUCT_OUT/symbols $TRACE $KERNEL $TRACE/dmtrace || return
+    echo "generating html file..."
+    dmtracedump -h $TRACE/dmtrace >| $TRACE/dmtrace.html || return
+    echo "done, see $TRACE/dmtrace.html for details"
+    echo "or run:"
+    echo "    traceview $TRACE/dmtrace"
+}
+
+# communicate with a running device or emulator, set up necessary state,
+# and run the hat command.
+function runhat()
+{
+    # process standard adb options
+    local adbTarget=""
+    if [ "$1" = "-d" -o "$1" = "-e" ]; then
+        adbTarget=$1
+        shift 1
+    elif [ "$1" = "-s" ]; then
+        adbTarget="$1 $2"
+        shift 2
+    fi
+    local adbOptions=${adbTarget}
+    echo adbOptions = ${adbOptions}
+
+    # runhat options
+    local targetPid=$1
+
+    if [ "$targetPid" = "" ]; then
+        echo "Usage: runhat [ -d | -e | -s serial ] target-pid"
+        return
+    fi
+
+    # confirm hat is available
+    if [ -z $(which hat) ]; then
+        echo "hat is not available in this configuration."
+        return
+    fi
+
+    # issue "am" command to cause the hprof dump
+    local devFile=/sdcard/hprof-$targetPid
+    echo "Poking $targetPid and waiting for data..."
+    adb ${adbOptions} shell am dumpheap $targetPid $devFile
+    echo "Press enter when logcat shows \"hprof: heap dump completed\""
+    echo -n "> "
+    read
+
+    local localFile=/tmp/$$-hprof
+
+    echo "Retrieving file $devFile..."
+    adb ${adbOptions} pull $devFile $localFile
+
+    adb ${adbOptions} shell rm $devFile
+
+    echo "Running hat on $localFile"
+    echo "View the output by pointing your browser at http://localhost:7000/"
+    echo ""
+    hat $localFile
+}
+
+function getbugreports()
+{
+    local reports=(`adb shell ls /sdcard/bugreports | tr -d '\r'`)
+
+    if [ ! "$reports" ]; then
+        echo "Could not locate any bugreports."
+        return
+    fi
+
+    local report
+    for report in ${reports[@]}
+    do
+        echo "/sdcard/bugreports/${report}"
+        adb pull /sdcard/bugreports/${report} ${report}
+        gunzip ${report}
+    done
+}
+
+function startviewserver()
+{
+    local port=4939
+    if [ $# -gt 0 ]; then
+            port=$1
+    fi
+    adb shell service call window 1 i32 $port
+}
+
+function stopviewserver()
+{
+    adb shell service call window 2
+}
+
+function isviewserverstarted()
+{
+    adb shell service call window 3
+}
+
+function key_home()
+{
+    adb shell input keyevent 3
+}
+
+function key_back()
+{
+    adb shell input keyevent 4
+}
+
+function key_menu()
+{
+    adb shell input keyevent 82
+}
+
+function smoketest()
+{
+    if [ ! "$ANDROID_PRODUCT_OUT" ]; then
+        echo "Couldn't locate output files.  Try running 'lunch' first." >&2
+        return
+    fi
+    T=$(gettop)
+    if [ ! "$T" ]; then
+        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
+        return
+    fi
+
+    (cd "$T" && mmm tests/SmokeTest) &&
+      adb uninstall com.android.smoketest > /dev/null &&
+      adb uninstall com.android.smoketest.tests > /dev/null &&
+      adb install $ANDROID_PRODUCT_OUT/data/app/SmokeTestApp.apk &&
+      adb install $ANDROID_PRODUCT_OUT/data/app/SmokeTest.apk &&
+      adb shell am instrument -w com.android.smoketest.tests/android.test.InstrumentationTestRunner
+}
+
+# simple shortcut to the runtest command
+function runtest()
+{
+    T=$(gettop)
+    if [ ! "$T" ]; then
+        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
+        return
+    fi
+    ("$T"/development/testrunner/runtest.py $@)
+}
+
+function godir () {
+    if [[ -z "$1" ]]; then
+        echo "Usage: godir <regex>"
+        return
+    fi
+    T=$(gettop)
+    if [[ ! -f $T/filelist ]]; then
+        echo -n "Creating index..."
+        (cd $T; find . -wholename ./out -prune -o -wholename ./.repo -prune -o -type f > filelist)
+        echo " Done"
+        echo ""
+    fi
+    local lines
+    lines=($(grep "$1" $T/filelist | sed -e 's/\/[^/]*$//' | sort | uniq))
+    if [[ ${#lines[@]} = 0 ]]; then
+        echo "Not found"
+        return
+    fi
+    local pathname
+    local choice
+    if [[ ${#lines[@]} > 1 ]]; then
+        while [[ -z "$pathname" ]]; do
+            local index=1
+            local line
+            for line in ${lines[@]}; do
+                printf "%6s %s\n" "[$index]" $line
+                index=$(($index + 1))
+            done
+            echo
+            echo -n "Select one: "
+            unset choice
+            read choice
+            if [[ $choice -gt ${#lines[@]} || $choice -lt 1 ]]; then
+                echo "Invalid choice"
+                continue
+            fi
+            pathname=${lines[$(($choice-1))]}
+        done
+    else
+        pathname=${lines[0]}
+    fi
+    cd $T/$pathname
+}
+
+# Force JAVA_HOME to point to java 1.6 if it isn't already set
+function set_java_home() {
+    if [ ! "$JAVA_HOME" ]; then
+        case `uname -s` in
+            Darwin)
+                export JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/1.6/Home
+                ;;
+            *)
+                export JAVA_HOME=/usr/lib/jvm/java-6-sun
+                ;;
+        esac
+    fi
+}
+
+# Custom build script for LiquidSmoothROMs
+function liquid() {
+    T=$(gettop)
+    if [ ! "$T" ]; then
+        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
+        return
+    fi
+
+    # Set cache compression
+    export USE_CCACHE=1
+    export CCACHE_DIR=$T/.ccache
+    $T/prebuilt/linux-x86/ccache/ccache -M 20G
+
+    # build in support for bootchart; see http://www.bootchart.org/ and explaination @ http://bit.ly/wQEe8j
+    export INIT_BOOTCHART=true
+    INIT_BOOTCHART=true
+
+    cd $T
+    lunch
+}
+
+function watchcc() {
+    T=$(gettop)
+    if [ ! "$T" ]; then
+        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
+        return
+    fi
+    watch -n1 -d $T/prebuilt/linux-x86/ccache/ccache -s
+}
+
+if [ "x$SHELL" != "x/bin/bash" ]; then
+    case `ps -o command -p $$` in
+        *bash*)
+            ;;
+        *)
+            echo "WARNING: Only bash is supported, use of other shell would lead to erroneous results"
+            ;;
+    esac
+fi
+
+# Execute the contents of any vendorsetup.sh files we can find.
+for f in `/bin/ls vendor/*/vendorsetup.sh vendor/*/*/vendorsetup.sh device/*/*/vendorsetup.sh 2> /dev/null`
+do
+    echo "pimp slapping $f ..."
+    . $f
+done
+unset f
+
+addcompletions
