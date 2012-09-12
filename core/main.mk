@@ -184,33 +184,30 @@ endif
 user_variant := $(filter userdebug user,$(TARGET_BUILD_VARIANT))
 enable_target_debugging := true
 ifneq (,$(user_variant))
+  # Target is secure in user builds.
+  ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=1
 
   tags_to_install := user
-
-  ifeq ($(user_variant),user)
-    # Target is secure in user builds.
-    ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=1
-
-    # Disable debugging in plain user builds.
-    enable_target_debugging :=
-
-    # Turn on Dalvik preoptimization for user builds, but only if not
-    # explicitly disabled and the build is running on Linux (since host
-    # Dalvik isn't built for non-Linux hosts).
-    ifneq (true,$(DISABLE_DEXPREOPT))
-      ifeq ($(HOST_OS),linux)
-        WITH_DEXPREOPT := true
-      endif
-    endif
-  else # userdebug
-    # Target is insecure in userdebug builds.
-    ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=0
-
+  ifeq ($(user_variant),userdebug)
     # Pick up some extra useful tools
     tags_to_install += debug
 
     # Enable Dalvik lock contention logging for userdebug builds.
     ADDITIONAL_BUILD_PROPERTIES += dalvik.vm.lockprof.threshold=750
+  else
+    # Disable debugging in plain user builds.
+    enable_target_debugging :=
+  endif
+
+  # Turn on Dalvik preoptimization for user builds, but only if not
+  # explicitly disabled and the build is running on Linux (since host
+  # Dalvik isn't built for non-Linux hosts).
+  ifneq (true,$(DISABLE_DEXPREOPT))
+    ifeq ($(user_variant),user)
+      ifeq ($(HOST_OS),linux)
+        WITH_DEXPREOPT := true
+      endif
+    endif
   endif
 
   # Disallow mock locations by default for user builds
@@ -239,12 +236,10 @@ endif # !enable_target_debugging
 
 ifeq ($(TARGET_BUILD_VARIANT),eng)
 tags_to_install := user debug eng
-ifneq ($(filter ro.setupwizard.mode=ENABLED, $(call collapse-pairs, $(ADDITIONAL_BUILD_PROPERTIES))),)
   # Don't require the setup wizard on eng builds
   ADDITIONAL_BUILD_PROPERTIES := $(filter-out ro.setupwizard.mode=%,\
           $(call collapse-pairs, $(ADDITIONAL_BUILD_PROPERTIES))) \
           ro.setupwizard.mode=OPTIONAL
-endif
 endif
 
 ## tests ##
@@ -297,7 +292,6 @@ endif
 endif
 
 ADDITIONAL_BUILD_PROPERTIES += net.bt.name=Android
-ADDITIONAL_BUILD_PROPERTIES += ro.HOME_APP_ADJ=1
 
 # enable vm tracing in files for now to help track
 # the cause of ANRs in the content process
@@ -412,6 +406,7 @@ subdirs += \
 	sdk/ide_common \
 	sdk/jarutils \
 	sdk/layoutlib_api \
+	sdk/layoutopt \
 	sdk/ninepatch \
 	sdk/rule_api \
 	sdk/lint \
@@ -515,7 +510,7 @@ ifneq ($(filter-out $(GRANDFATHERED_ALL_PREBUILT),$(strip $(notdir $(ALL_PREBUIL
   $(warning *)
   $(foreach bad_prebuilt,$(filter-out $(GRANDFATHERED_ALL_PREBUILT),$(strip $(notdir $(ALL_PREBUILT)))),$(warning * unexpected $(bad_prebuilt) in ALL_PREBUILT))
   $(warning *)
-  $(warning ALL_PREBUILT contains unexpected files)
+  $(error ALL_PREBUILT contains unexpected files)
 endif
 
 # -------------------------------------------------------------------

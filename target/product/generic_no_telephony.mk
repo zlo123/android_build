@@ -29,14 +29,12 @@ PRODUCT_PACKAGES := \
     DrmProvider \
     Email \
     Exchange \
-    Gallery2 \
     LatinIME \
     Launcher2 \
+    Music \
     Phone \
     Settings \
     Stk \
-    Superuser \
-    su \
     Sync \
     SystemUI \
     Updater \
