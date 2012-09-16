@@ -124,9 +124,6 @@ TARGET_SHELL := mksh
 # are specific to the user's build configuration.
 include $(BUILD_SYSTEM)/envsetup.mk
 
-# Useful macros
-include $(BUILD_SYSTEM)/linaro_compilerchecks.mk
-
 # Boards may be defined under $(SRC_TARGET_DIR)/board/$(TARGET_DEVICE)
 # or under vendor/*/$(TARGET_DEVICE).  Search in both places, but
 # make sure only one exists.
@@ -323,11 +320,8 @@ TARGET_PROJECT_INCLUDES:= $(SRC_HEADERS) $(TARGET_OUT_HEADERS)
 # Many host compilers don't support these flags, so we have to make
 # sure to only specify them for the target compilers checked in to
 # the source tree.
-ifeq ($(TARGET_EXTRA_CPPFLAGS),)
-TARGET_EXTRA_CPPFLAGS := $(TARGET_EXTRA_CFLAGS)
-endif
-TARGET_GLOBAL_CFLAGS += $(TARGET_ERROR_FLAGS) $(TARGET_EXTRA_CFLAGS)
-TARGET_GLOBAL_CPPFLAGS += $(TARGET_ERROR_FLAGS) $(TARGET_EXTRA_CPPFLAGS)
+TARGET_GLOBAL_CFLAGS += $(TARGET_ERROR_FLAGS)
+TARGET_GLOBAL_CPPFLAGS += $(TARGET_ERROR_FLAGS)
 
 HOST_GLOBAL_CFLAGS += $(HOST_RELEASE_CFLAGS)
 HOST_GLOBAL_CPPFLAGS += $(HOST_RELEASE_CPPFLAGS)

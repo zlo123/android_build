@@ -123,13 +123,13 @@ function setpaths()
 
     # The gcc toolchain does not exists for windows/cygwin. In this case, do not reference it.
     export ANDROID_EABI_TOOLCHAIN=
-    toolchaindir=toolchain/linaro-4.7.1/bin
+    toolchaindir=toolchain/arm-linux-androideabi-4.4.x/bin
     if [ -d "$prebuiltdir/$toolchaindir" ]; then
         export ANDROID_EABI_TOOLCHAIN=$prebuiltdir/$toolchaindir
     fi
 
     export ARM_EABI_TOOLCHAIN=
-    toolchaindir=toolchain/linaro-4.7.1/bin
+    toolchaindir=toolchain/arm-eabi-4.4.3/bin
     if [ -d "$prebuiltdir/$toolchaindir" ]; then
         export ARM_EABI_TOOLCHAIN=$prebuiltdir/$toolchaindir
     fi
@@ -747,7 +747,7 @@ function gdbclient()
        echo >>"$OUT_ROOT/gdbclient.cmds" "target remote $PORT"
        echo >>"$OUT_ROOT/gdbclient.cmds" ""
 
-       $ANDROID_EABI_TOOLCHAIN/*-gdb -x "$OUT_ROOT/gdbclient.cmds" "$OUT_EXE_SYMBOLS/$EXE"
+       arm-linux-androideabi-gdb -x "$OUT_ROOT/gdbclient.cmds" "$OUT_EXE_SYMBOLS/$EXE"
   else
        echo "Unable to determine build system output dir."
    fi
@@ -1055,36 +1055,6 @@ function set_java_home() {
     fi
 }
 
-# Custom build script for LiquidSmoothROMs
-function liquid() {
-    T=$(gettop)
-    if [ ! "$T" ]; then
-        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
-        return
-    fi
-
-    # Set cache compression
-    export USE_CCACHE=1
-    export CCACHE_DIR=$T/.ccache
-    $T/prebuilt/linux-x86/ccache/ccache -M 20G
-
-    # build in support for bootchart; see http://www.bootchart.org/ and explaination @ http://bit.ly/wQEe8j
-    export INIT_BOOTCHART=true
-    INIT_BOOTCHART=true
-
-    cd $T
-    lunch
-}
-
-function watchcc() {
-    T=$(gettop)
-    if [ ! "$T" ]; then
-        echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
-        return
-    fi
-    watch -n1 -d $T/prebuilt/linux-x86/ccache/ccache -s
-}
-
 if [ "x$SHELL" != "x/bin/bash" ]; then
     case `ps -o command -p $$` in
         *bash*)
@@ -1097,8 +1067,9 @@ fi
 
 # Execute the contents of any vendorsetup.sh files we can find.
 for f in `/bin/ls vendor/*/vendorsetup.sh vendor/*/*/vendorsetup.sh device/*/*/vendorsetup.sh 2> /dev/null`
+
 do
-    echo "pimp slapping $f ..."
+    echo "including $f"
     . $f
 done
 unset f
