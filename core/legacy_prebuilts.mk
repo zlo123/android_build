@@ -25,9 +25,12 @@ GRANDFATHERED_ALL_PREBUILT := \
 	akmd2 \
 	am \
 	ap_gain.bin \
+	audio.conf \
+	auto_pairing.conf \
 	AVRCP.kl \
 	batch \
 	bitmap_size.txt \
+	blacklist.conf \
 	bmgr \
 	bp.img \
 	brcm_guci_drv \
@@ -58,6 +61,7 @@ GRANDFATHERED_ALL_PREBUILT := \
 	init.sholes.rc \
 	init.stingray.rc \
 	input \
+	input.conf \
 	kernel \
 	lbl \
 	libEGL_POWERVR_SGX530_121.so \
@@ -76,6 +80,7 @@ GRANDFATHERED_ALL_PREBUILT := \
 	mbm_consumer.bin \
 	mdm_panicd \
 	monkey \
+	network.conf \
 	pm \
 	pppd-ril \
 	pppd-ril.options \
@@ -98,4 +103,7 @@ GRANDFATHERED_ALL_PREBUILT := \
 	ueventd.rc \
 	ueventd.stingray.rc \
 	vold.fstab \
-	wl1271.bin
+	wl1271.bin \
+	zoneinfo.dat \
+	zoneinfo.idx \
+	zoneinfo.version

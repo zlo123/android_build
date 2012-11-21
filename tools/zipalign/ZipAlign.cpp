@@ -125,7 +125,7 @@ static int process(const char* inFileName, const char* outFileName,
             ZipFile::kOpenReadWrite|ZipFile::kOpenCreate|ZipFile::kOpenTruncate)
         != NO_ERROR)
     {
-        fprintf(stderr, "Unable to open '%s' as zip archive\n", outFileName);
+        fprintf(stderr, "Unable to open '%s' as zip archive\n", inFileName);
         return 1;
     }
 

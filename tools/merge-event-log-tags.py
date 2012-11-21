@@ -26,10 +26,7 @@ and fails if they do.
 
 import cStringIO
 import getopt
-try:
-  import hashlib
-except ImportError:
-  import md5 as hashlib
+import md5
 import struct
 import sys
 
@@ -144,7 +141,7 @@ if warnings:
 # versions of python.  Using md5 is overkill here but is the same from
 # platform to platform and speed shouldn't matter in practice.
 def hashname(str):
-  d = hashlib.md5(str).digest()[:4]
+  d = md5.md5(str).digest()[:4]
   return struct.unpack("!I", d)[0]
 
 # Assign a tag number to all the entries that say they want one

@@ -20,9 +20,8 @@ PRODUCT_PROPERTY_OVERRIDES :=
 PRODUCT_PACKAGES := \
 	Calculator \
 	DeskClock \
-	Email2 \
+	Email \
 	Exchange2 \
-	FusedLocation \
 	Gallery \
 	Music \
 	Mms \
@@ -32,7 +31,6 @@ PRODUCT_PACKAGES := \
 	SystemUI \
 	Launcher2 \
 	Development \
-	DevelopmentSettings \
 	DrmProvider \
 	Fallback \
 	Settings \
@@ -85,7 +83,6 @@ PRODUCT_COPY_FILES := \
 	development/tools/emulator/system/camera/media_codecs.xml:system/etc/media_codecs.xml \
 	frameworks/native/data/etc/android.hardware.touchscreen.multitouch.jazzhand.xml:system/etc/permissions/android.hardware.touchscreen.multitouch.jazzhand.xml \
 	frameworks/native/data/etc/android.hardware.camera.autofocus.xml:system/etc/permissions/android.hardware.camera.autofocus.xml \
-	frameworks/av/media/libeffects/data/audio_effects.conf:system/etc/audio_effects.conf \
 	hardware/libhardware_legacy/audio/audio_policy.conf:system/etc/audio_policy.conf
 
 $(call inherit-product-if-exists, frameworks/base/data/fonts/fonts.mk)

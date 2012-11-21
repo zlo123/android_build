@@ -55,11 +55,6 @@ ALL_MODULE_TAGS:=
 # its sub-variables.)
 ALL_MODULE_NAME_TAGS:=
 
-# All host modules are automatically installed (i.e. outside
-# of the product configuration scheme).  This is a list of the
-# install targets (LOCAL_INSTALLED_MODULE).
-ALL_HOST_INSTALLED_FILES:=
-
 # Full paths to all prebuilt files that will be copied
 # (used to make the dependency on acp)
 ALL_PREBUILT:=
@@ -269,7 +264,7 @@ endef
 define all-renderscript-files-under
 $(patsubst ./%,%, \
   $(shell cd $(LOCAL_PATH) ; \
-          find $(1) \( -name "*.rs" -or -name "*.fs" \) -and -not -name ".*") \
+          find $(1) -name "*.rs" -and -not -name ".*") \
   )
 endef
 
@@ -574,6 +569,10 @@ endef
 ###########################################################
 ## Convert "a b c" into "a:b:c"
 ###########################################################
+
+empty :=
+space := $(empty) $(empty)
+
 define normalize-path-list
 $(subst $(space),:,$(strip $(1)))
 endef
@@ -757,17 +756,12 @@ endef
 ###########################################################
 ## Commands for munging the dependency files GCC generates
 ###########################################################
-# $(1): the input .d file
-# $(2): the output .P file
-define transform-d-to-p-args
-$(hide) cp $(1) $(2); \
-	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
-		-e '/^$$/ d' -e 's/$$/ :/' < $(1) >> $(2); \
-	rm -f $(1)
-endef
 
 define transform-d-to-p
-$(call transform-d-to-p-args,$(@:%.o=%.d),$(@:%.o=%.P))
+$(hide) cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		-e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	rm -f $(@:%.o=%.d)
 endef
 
 ###########################################################
@@ -886,7 +880,7 @@ endef
 
 define transform-cpp-to-o
 @mkdir -p $(dir $@)
-@echo -e ${CL_PFX}"target $(PRIVATE_ARM_MODE) C++:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_GRN}"target $(PRIVATE_ARM_MODE) C++:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(hide) $(PRIVATE_CXX) \
 	$(addprefix -I , $(PRIVATE_C_INCLUDES)) \
 	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
@@ -937,12 +931,12 @@ $(hide) $(PRIVATE_CC) \
 endef
 
 define transform-c-to-o-no-deps
-@echo -e ${CL_PFX}"target $(PRIVATE_ARM_MODE) C:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_GRN}"target $(PRIVATE_ARM_MODE) C:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(call transform-c-or-s-to-o-no-deps, )
 endef
 
 define transform-s-to-o-no-deps
-@echo -e ${CL_PFX}"target asm:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_GRN}"target asm:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(call transform-c-or-s-to-o-no-deps, $(PRIVATE_ASFLAGS))
 endef
 
@@ -963,7 +957,7 @@ endef
 ###########################################################
 
 define transform-m-to-o-no-deps
-@echo -e ${CL_PFX}"target ObjC:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_GRN}"target ObjC:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(call transform-c-or-s-to-o-no-deps)
 endef
 
@@ -978,7 +972,7 @@ endef
 
 define transform-host-cpp-to-o
 @mkdir -p $(dir $@)
-@echo -e ${CL_PFX}"host C++:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_YLW}"host C++:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(hide) $(PRIVATE_CXX) \
 	$(addprefix -I , $(PRIVATE_C_INCLUDES)) \
 	$(shell cat $(PRIVATE_IMPORT_INCLUDES)) \
@@ -1026,12 +1020,12 @@ $(hide) $(PRIVATE_CC) \
 endef
 
 define transform-host-c-to-o-no-deps
-@echo -e ${CL_PFX}"host C:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_YLW}"host C:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(call transform-host-c-or-s-to-o-no-deps, )
 endef
 
 define transform-host-s-to-o-no-deps
-@echo "host asm: $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_YLW}"host asm:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(call transform-host-c-or-s-to-o-no-deps, $(PRIVATE_ASFLAGS))
 endef
 
@@ -1050,7 +1044,7 @@ endef
 ###########################################################
 
 define transform-host-m-to-o-no-deps
-@echo "host ObjC: $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_YLW}"host ObjC:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 $(call transform-host-c-or-s-to-o-no-deps)
 endef
 
@@ -1068,13 +1062,11 @@ $(if $(2),$(hide) $(1) $(2))
 endef
 
 # Split long argument list into smaller groups and call the command repeatedly
-# Call the command at least once even if there are no arguments, as otherwise
-# the output file won't be created.
 #
 # $(1): the command without arguments
 # $(2): the arguments
 define split-long-arguments
-$(hide) $(1) $(wordlist 1,500,$(2))
+$(call _concat-if-arg2-not-empty,$(1),$(wordlist 1,500,$(2)))
 $(call _concat-if-arg2-not-empty,$(1),$(wordlist 501,1000,$(2)))
 $(call _concat-if-arg2-not-empty,$(1),$(wordlist 1001,1500,$(2)))
 $(call _concat-if-arg2-not-empty,$(1),$(wordlist 1501,2000,$(2)))
@@ -1085,7 +1077,7 @@ endef
 
 # $(1): the full path of the source static library.
 define _extract-and-include-single-target-whole-static-lib
-@echo "preparing StaticLib: $(PRIVATE_MODULE) [including $(1)]"
+@echo -e ${CL_YLW}"preparing StaticLib:"${CL_RST}" $(PRIVATE_MODULE) [including $(1)]"
 $(hide) ldir=$(PRIVATE_INTERMEDIATES_DIR)/WHOLE/$(basename $(notdir $(1)))_objs;\
     rm -rf $$ldir; \
     mkdir -p $$ldir; \
@@ -1109,7 +1101,7 @@ define transform-o-to-static-lib
 @mkdir -p $(dir $@)
 @rm -f $@
 $(extract-and-include-target-whole-static-libs)
-@echo "target StaticLib: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_GRN}"target StaticLib:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(call split-long-arguments,$(TARGET_AR) $(TARGET_GLOBAL_ARFLAGS) $(PRIVATE_ARFLAGS) $@,$(filter %.o, $^))
 endef
 
@@ -1119,7 +1111,7 @@ endef
 
 # $(1): the full path of the source static library.
 define _extract-and-include-single-host-whole-static-lib
-@echo "preparing StaticLib: $(PRIVATE_MODULE) [including $(1)]"
+@echo -e ${CL_YLW}"preparing StaticLib:"${CL_RST}" $(PRIVATE_MODULE) [including $(1)]"
 $(hide) ldir=$(PRIVATE_INTERMEDIATES_DIR)/WHOLE/$(basename $(notdir $(1)))_objs;\
     rm -rf $$ldir; \
     mkdir -p $$ldir; \
@@ -1143,7 +1135,7 @@ define transform-host-o-to-static-lib
 @mkdir -p $(dir $@)
 @rm -f $@
 $(extract-and-include-host-whole-static-libs)
-@echo "host StaticLib: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_YLW}"host StaticLib:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(call split-long-arguments,$(HOST_AR) $(HOST_GLOBAL_ARFLAGS) $(PRIVATE_ARFLAGS) $@,$(filter %.o, $^))
 endef
 
@@ -1180,13 +1172,13 @@ endif
 
 define transform-host-o-to-shared-lib
 @mkdir -p $(dir $@)
-@echo "host SharedLib: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_YLW}"host SharedLib:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-host-o-to-shared-lib-inner)
 endef
 
 define transform-host-o-to-package
 @mkdir -p $(dir $@)
-@echo "host Package: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_YLW}"host Package:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-host-o-to-shared-lib-inner)
 endef
 
@@ -1230,13 +1222,13 @@ endif
 
 define transform-o-to-shared-lib
 @mkdir -p $(dir $@)
-@echo "target SharedLib: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_GRN}"target SharedLib:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-o-to-shared-lib-inner)
 endef
 
 define transform-o-to-package
 @mkdir -p $(dir $@)
-@echo "target Package: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_GRN}"target Package:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-o-to-shared-lib-inner)
 endef
 
@@ -1247,7 +1239,7 @@ endef
 
 define transform-to-stripped
 @mkdir -p $(dir $@)
-@echo "target Strip: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_GRN}"target Strip:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(hide) $(TARGET_STRIP_COMMAND)
 endef
 
@@ -1259,11 +1251,13 @@ endef
 ifneq ($(TARGET_CUSTOM_LD_COMMAND),true)
 define transform-o-to-executable-inner
 $(hide) $(PRIVATE_CXX) \
-	$(PRIVATE_TARGET_GLOBAL_LDFLAGS) \
-	$(PRIVATE_TARGET_GLOBAL_LD_DIRS) \
+	$(TARGET_GLOBAL_LDFLAGS) \
+	-Wl,-rpath-link=$(TARGET_OUT_INTERMEDIATE_LIBRARIES) \
+	$(TARGET_GLOBAL_LD_DIRS) \
 	-Wl,-rpath-link=$(TARGET_OUT_INTERMEDIATE_LIBRARIES) \
 	-Wl,-rpath,\$$ORIGIN/../lib \
 	$(PRIVATE_LDFLAGS) \
+	$(TARGET_GLOBAL_LD_DIRS) \
 	$(PRIVATE_ALL_OBJECTS) \
 	-Wl,--whole-archive \
 	$(call normalize-target-libraries,$(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES)) \
@@ -1279,7 +1273,7 @@ endif
 
 define transform-o-to-executable
 @mkdir -p $(dir $@)
-@echo "target Executable: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_GRN}"target Executable:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-o-to-executable-inner)
 endef
 
@@ -1298,7 +1292,7 @@ endif
 
 define transform-o-to-static-executable
 @mkdir -p $(dir $@)
-@echo "target StaticExecutable: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_GRN}"target StaticExecutable:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-o-to-static-executable-inner)
 endef
 
@@ -1332,7 +1326,7 @@ endif
 
 define transform-host-o-to-executable
 @mkdir -p $(dir $@)
-@echo "host Executable: $(PRIVATE_MODULE) ($@)"
+@echo -e ${CL_YLW}"host Executable:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(transform-host-o-to-executable-inner)
 endef
 
@@ -1436,8 +1430,8 @@ define unzip-jar-files
       exit 1; \
     fi; \
     unzip -qo $$f -d $(2); \
-  done \
-  $(if $(PRIVATE_DONT_DELETE_JAR_META_INF),,;rm -rf $(2)/META-INF)
+    (cd $(2) && rm -rf META-INF); \
+  done
 endef
 
 # Common definition to invoke javac on the host and target.
@@ -1486,8 +1480,9 @@ $(hide) jar $(if $(strip $(PRIVATE_JAR_MANIFEST)),-cfm,-cf) \
 endef
 
 define transform-java-to-classes.jar
-@echo -e ${CL_PFX}"target Java:"${CL_RST}" $(PRIVATE_MODULE) ($(PRIVATE_CLASS_INTERMEDIATES_DIR))"
+@echo -e ${CL_GRN}"target Java:"${CL_RST}" $(PRIVATE_MODULE) ($(PRIVATE_CLASS_INTERMEDIATES_DIR))"
 $(call compile-java,$(TARGET_JAVAC),$(PRIVATE_BOOTCLASSPATH))
+$(hide) rm -rf $(PRIVATE_CLASS_INTERMEDIATES_DIR)
 endef
 
 # Override the above definitions if we want to do incremetal javac
@@ -1506,7 +1501,7 @@ $(hide) if [ -e $(PRIVATE_CLASS_INTERMEDIATES_DIR)/stamp ] ; then \
     fi
 $(hide) tr ' ' '\n' < $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list \
     | sort -u > $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq
-@echo "(Incremental) build source files:"
+@echo -e ${CL_YLW}"(Incremental) build source files:"${CL_RST}""
 @cat $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq
 $(hide) if [ -s $(PRIVATE_CLASS_INTERMEDIATES_DIR)/java-source-list-uniq ] ; then \
     $(1) -encoding UTF-8 \
@@ -1534,7 +1529,7 @@ $(hide) mv $(PRIVATE_CLASS_INTERMEDIATES_DIR)/newstamp $(PRIVATE_CLASS_INTERMEDI
 endef
 
 define transform-java-to-classes.jar
-@echo -e ${CL_PFX}"target Java:"${CL_RST}" $(PRIVATE_MODULE) ($(PRIVATE_CLASS_INTERMEDIATES_DIR))"
+@echo -e ${CL_GRN}"target Java:"${CL_RST}" $(PRIVATE_MODULE) ($(PRIVATE_CLASS_INTERMEDIATES_DIR))"
 $(call compile-java,$(TARGET_JAVAC),$(PRIVATE_BOOTCLASSPATH))
 endef
 endif # ENABLE_INCREMENTALJAVAC
@@ -1549,7 +1544,7 @@ endef
 #      only core.jar and framework.jar need a heap this big.
 # Avoid the memory arguments on Windows, dx fails to load for some reason with them.
 define transform-classes.jar-to-dex
-@echo "target Dex: $(PRIVATE_MODULE)"
+@echo -e ${CL_GRN}"target Dex:"${CL_RST}" $(PRIVATE_MODULE)"
 @mkdir -p $(dir $@)
 $(hide) $(DX) \
     $(if $(findstring windows,$(HOST_OS)),,-JXms16M -JXmx$(if $(call streq,$(HOST_BITS),32),1024,2048)M) \
@@ -1620,25 +1615,10 @@ cp $(PRIVATE_DEX_FILE) $$_adtp_classes_dex && \
 $(AAPT) add -k $@ $$_adtp_classes_dex && rm -f $$_adtp_classes_dex)
 endef
 
-# Add java resources added by the current module.
-#
 define add-java-resources-to-package
 $(call dump-words-to-file, $(PRIVATE_EXTRA_JAR_ARGS), $(dir $@)jar-arg-list)
 $(hide) jar uf $@ @$(dir $@)jar-arg-list
 @rm -f $(dir $@)jar-arg-list
-endef
-
-# Add java resources carried by static Java libraries.
-#
-define add-carried-java-resources
-$(hide) if [ -d $(PRIVATE_CLASS_INTERMEDIATES_DIR) ] ; then \
-    java_res_jar_flags=$$(find $(PRIVATE_CLASS_INTERMEDIATES_DIR) -type f -a -not -name "*.class" \
-        | sed -e "s?^$(PRIVATE_CLASS_INTERMEDIATES_DIR)/? -C $(PRIVATE_CLASS_INTERMEDIATES_DIR) ?"); \
-    if [ -n "$$java_res_jar_flags" ] ; then \
-        echo $$java_res_jar_flags >$(dir $@)java_res_jar_flags; \
-        jar uf $@ $$java_res_jar_flags; \
-    fi; \
-fi
 endef
 
 # Sign a package using the specified key/cert.
@@ -1679,7 +1659,7 @@ endef
 # Note: we intentionally don't clean PRIVATE_CLASS_INTERMEDIATES_DIR
 # in transform-java-to-classes for the sake of vm-tests.
 define transform-host-java-to-package
-@echo "host Java: $(PRIVATE_MODULE) ($(PRIVATE_CLASS_INTERMEDIATES_DIR))"
+@echo -e ${CL_YLW}"host Java:"${CL_RST}" $(PRIVATE_MODULE) ($(PRIVATE_CLASS_INTERMEDIATES_DIR))"
 $(call compile-java,$(HOST_JAVAC),$(PRIVATE_BOOTCLASSPATH))
 $(if $(PRIVATE_EXTRA_JAR_ARGS), $(call add-java-resources-to-package))
 endef
@@ -1693,7 +1673,7 @@ endef
 # The module using this must depend on
 #        $(HOST_OUT_JAVA_LIBRARIES)/proguard-4.0.1.jar
 define obfuscate-jar
-@echo "Obfuscate jar: $(notdir $@) ($@)"
+@echo -e ${CL_GRN}"Obfuscate jar:"${CL_RST}" $(notdir $@) ($@)"
 @mkdir -p $(dir $@)
 @rm -f $@
 @mkdir -p $(PRIVATE_INTERMEDIATES_DIR)
@@ -1722,7 +1702,7 @@ endef
 # $(2): destination header
 define copy-one-header
 $(2): $(1)
-	@echo "Header: $$@"
+	@echo -e ${CL_YLW}"Header:"${CL_RST}" $$@"
 	$$(copy-file-to-new-target-with-cp)
 endef
 
@@ -1731,20 +1711,8 @@ endef
 # $(2): destination file
 define copy-one-file
 $(2): $(1) | $(ACP)
-	@echo "Copy: $$@"
+	@echo -e ${CL_YLW}"Copy:"${CL_RST}" $$@"
 	$$(copy-file-to-target)
-endef
-
-# Copies many files.
-# $(1): The files to copy.  Each entry is a ':' separated src:dst pair
-# Evaluates to the list of the dst files (ie suitable for a dependency list)
-define copy-many-files
-$(foreach f, $(1), $(strip \
-    $(eval _cmf_tuple := $(subst :, ,$(f))) \
-    $(eval _cmf_src := $(word 1,$(_cmf_tuple))) \
-    $(eval _cmf_dest := $(word 2,$(_cmf_tuple))) \
-    $(eval $(call copy-one-file,$(_cmf_src),$(_cmf_dest))) \
-    $(_cmf_dest)))
 endef
 
 # Copy the file only if it's a well-formed xml file. For use via $(eval).
@@ -1752,7 +1720,7 @@ endef
 # $(2): destination file, must end with .xml.
 define copy-xml-file-checked
 $(2): $(1) | $(ACP)
-	@echo "Copy xml: $$@"
+	@echo -e ${CL_YLW}"Copy xml:"${CL_RST}" $$@"
 	$(hide) xmllint $$< >/dev/null  # Don't print the xml file to stdout.
 	$$(copy-file-to-target)
 endef
@@ -1766,7 +1734,7 @@ endef
 # Copy a single file from one place to another,
 # preserving permissions and overwriting any existing
 # file.
-# We disable the "-t" option for acp cannot handle
+# We disable the "-t" option for acp can not handle
 # high resolution timestamp correctly on file systems like ext4.
 # Therefore copy-file-to-target is the same as copy-file-to-new-target.
 define copy-file-to-target
@@ -1810,19 +1778,19 @@ endef
 
 # Copy a prebuilt file to a target location.
 define transform-prebuilt-to-target
-@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) Prebuilt: $(PRIVATE_MODULE) ($@)"
+@echo -e "$(if $(PRIVATE_IS_HOST_MODULE),host,target) "${CL_CYN}"Prebuilt:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(copy-file-to-target)
 endef
 
 # Copy a prebuilt file to a target location, using zipalign on it.
 define transform-prebuilt-to-target-with-zipalign
-@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) Prebuilt APK: $(PRIVATE_MODULE) ($@)"
+@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) "${CL_CYN}"Prebuilt APK:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(copy-file-to-target-with-zipalign)
 endef
 
 # Copy a prebuilt file to a target location, stripping "# comment" comments.
 define transform-prebuilt-to-target-strip-comments
-@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) Prebuilt: $(PRIVATE_MODULE) ($@)"
+@echo "$(if $(PRIVATE_IS_HOST_MODULE),host,target) "${CL_CYN}"Prebuilt:"${CL_RST}" $(PRIVATE_MODULE) ($@)"
 $(copy-file-to-target-strip-comments)
 endef
 
@@ -1859,14 +1827,14 @@ endif
 
 # Command to copy the file with acp, if proguard is disabled.
 define proguard-disabled-commands
-@echo Copying: $@
+@echo -e ${CL_CYN}"Copying:"${CL_RST}" $@"
 $(hide) $(ACP) -fp $< $@
 endef
 
 # Command to call Proguard
 # $(1): extra flags for instrumentation.
 define proguard-enabled-commands
-@echo Proguard: $@
+@echo -e ${CL_GRN}"Proguard:"${CL_RST}" $@"
 $(hide) $(PROGUARD) -injars $< -outjars $@ $(PRIVATE_PROGUARD_FLAGS) $(1)
 endef
 
@@ -1889,7 +1857,7 @@ endef
 ###########################################################
 
 define transform-generated-source
-@echo -e ${CL_PFX}"target Generated:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
+@echo -e ${CL_GRN}"target Generated:"${CL_RST}" $(PRIVATE_MODULE) <= $<"
 @mkdir -p $(dir $@)
 $(hide) $(PRIVATE_CUSTOM_TOOL)
 endef
@@ -2071,6 +2039,10 @@ endef
 # Rules and functions to help copy important files to DIST_DIR
 # when requested.
 include $(BUILD_SYSTEM)/distdir.mk
+
+# -----------------------------------------------------------------
+# The modules allowed to use a user tag
+include $(BUILD_SYSTEM)/user_tags.mk
 
 # broken:
 #	$(foreach file,$^,$(if $(findstring,.a,$(suffix $file)),-l$(file),$(file)))

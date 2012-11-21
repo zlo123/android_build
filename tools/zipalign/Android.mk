@@ -28,10 +28,6 @@ else
 LOCAL_LDLIBS += -lz
 endif
 
-ifneq ($(strip $(BUILD_HOST_static)),)
-LOCAL_LDLIBS += -lpthread
-endif # BUILD_HOST_static
-
 LOCAL_MODULE := zipalign
 
 include $(BUILD_HOST_EXECUTABLE)

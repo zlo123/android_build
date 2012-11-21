@@ -1,8 +1,6 @@
 function hmm() {
 cat <<EOF
 Invoke ". build/envsetup.sh" from your shell to add the following functions to your environment:
-- lunch:   lunch <product_name>-<build_variant>
-- tapas:   tapas [<App1> <App2> ...] [arm|x86|mips] [eng|userdebug|user]
 - croot:   Changes directory to the top of the tree.
 - m:       Makes from the top of the tree.
 - mm:      Builds all of the modules in the current directory.
@@ -11,6 +9,10 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - jgrep:   Greps on all local Java files.
 - resgrep: Greps on all local res/*.xml files.
 - godir:   Go to the directory containing a file.
+- mka:      Builds using SCHED_BATCH on all processors
+- mbot:     Builds for all devices using the psuedo buildbot
+- mkapush:  Same as mka with the addition of adb pushing to the device.
+- reposync: Parallel repo sync using ionice and SCHED_BATCH
 
 Look at the source to view more functions. The complete list is:
 EOF
@@ -57,11 +59,17 @@ function check_product()
     fi
 
     if (echo -n $1 | grep -q -e "^liquid_") ; then
-        LIQUID_BUILD=$(echo -n $1 | sed -e 's/^liquid_//g')
-    else
-        LIQUID_BUILD=
+       LIQUID_BUILD=$(echo -n $1 | sed -e 's/^liquid_//g')
+       NAM_VARIANT=$(echo -n $1 | sed -e 's/^liquid_//g')
+    elif (echo -n $1 | grep -q -e "htc_") ; then
+       LIQUID_BUILD=
+       NAM_VARIANT=$(echo -n $1)
+    else 
+       LIQUID_BUILD=
+       NAM_VARIANT=
     fi
     export LIQUID_BUILD
+    export NAM_VARIANT
 
     CALLED_FROM_SETUP=true BUILD_SYSTEM=build/core \
         TARGET_PRODUCT=$1 \
@@ -130,11 +138,9 @@ function setpaths()
     export ANDROID_EABI_TOOLCHAIN=
     local ARCH=$(get_build_var TARGET_ARCH)
     case $ARCH in
-        x86) toolchaindir=x86/i686-linux-android-4.6/bin
+        x86) toolchaindir=x86/i686-android-linux-4.4.3/bin
             ;;
         arm) toolchaindir=arm/arm-linux-androideabi-4.6/bin
-            ;;
-        mips) toolchaindir=mips/mipsel-linux-android-4.6/bin
             ;;
         *)
             echo "Can't find toolchain for unknown architecture: $ARCH"
@@ -147,29 +153,27 @@ function setpaths()
         export ANDROID_EABI_TOOLCHAIN="$gccprebuiltdir/$toolchaindir"
     fi
 
-    unset ARM_EABI_TOOLCHAIN ARM_EABI_TOOLCHAIN_PATH
+    export ARM_EABI_TOOLCHAIN=
     case $ARCH in
-        arm)
-            toolchaindir=arm/arm-eabi-4.6/bin
-            if [ -e "$gccprebuiltextradir/$toolchaindir" ]; then
-                export ARM_EABI_TOOLCHAIN="$gccprebuiltextradir/$toolchaindir"
-                ARM_EABI_TOOLCHAIN_PATH=":$gccprebuiltextradir/$toolchaindir"
-            elif [ -d "$gccprebuiltdir/$toolchaindir" ]; then
-                 export ARM_EABI_TOOLCHAIN="$gccprebuiltdir/$toolchaindir"
-                 ARM_EABI_TOOLCHAIN_PATH=":$gccprebuiltdir/$toolchaindir"
-            fi
+        x86) toolchaindir=x86/i686-eabi-4.4.3/bin
             ;;
-        mips) toolchaindir=mips/mips-eabi-4.4.3/bin
+        arm) toolchaindir=arm/arm-eabi-4.6/bin
             ;;
         *)
-            # No need to set ARM_EABI_TOOLCHAIN for other ARCHs
+            echo "Can't find toolchain for unknown architecture: $ARCH"
+            toolchaindir=xxxxxxxxx
             ;;
     esac
+    if [ -e "$gccprebuiltextradir/$toolchaindir" ]; then
+        export ARM_EABI_TOOLCHAIN="$gccprebuiltextradir/$toolchaindir"
+    elif [ -d "$gccprebuiltdir/$toolchaindir" ]; then
+        export ARM_EABI_TOOLCHAIN="$gccprebuiltdir/$toolchaindir"
+    fi
 
     export ANDROID_TOOLCHAIN=$ANDROID_EABI_TOOLCHAIN
     export ANDROID_QTOOLS=$T/development/emulator/qtools
     export ANDROID_DEV_SCRIPTS=$T/development/scripts
-    export ANDROID_BUILD_PATHS=:$(get_build_var ANDROID_BUILD_PATHS):$ANDROID_QTOOLS:$ANDROID_TOOLCHAIN$ARM_EABI_TOOLCHAIN_PATH$CODE_REVIEWS:$ANDROID_DEV_SCRIPTS
+    export ANDROID_BUILD_PATHS=:$(get_build_var ANDROID_BUILD_PATHS):$ANDROID_QTOOLS:$ANDROID_TOOLCHAIN:$ARM_EABI_TOOLCHAIN$CODE_REVIEWS:$ANDROID_DEV_SCRIPTS
     export PATH=$PATH$ANDROID_BUILD_PATHS
 
     unset ANDROID_JAVA_TOOLCHAIN
@@ -224,14 +228,13 @@ function set_sequence_number()
 function settitle()
 {
     if [ "$STAY_OFF_MY_LAWN" = "" ]; then
-        local arch=$(gettargetarch)
         local product=$TARGET_PRODUCT
         local variant=$TARGET_BUILD_VARIANT
         local apps=$TARGET_BUILD_APPS
         if [ -z "$apps" ]; then
-            export PROMPT_COMMAND="echo -ne \"\033]0;[${arch}-${product}-${variant}] ${USER}@${HOSTNAME}: ${PWD}\007\""
+            export PROMPT_COMMAND="echo -ne \"\033]0;[${product}-${variant}] ${USER}@${HOSTNAME}: ${PWD}\007\""
         else
-            export PROMPT_COMMAND="echo -ne \"\033]0;[$arch $apps $variant] ${USER}@${HOSTNAME}: ${PWD}\007\""
+            export PROMPT_COMMAND="echo -ne \"\033]0;[$apps $variant] ${USER}@${HOSTNAME}: ${PWD}\007\""
         fi
     fi
 }
@@ -435,10 +438,6 @@ function add_lunch_combo()
 }
 
 # add the default one here
-#add_lunch_combo full-eng
-#add_lunch_combo full_x86-eng
-#add_lunch_combo vbox_x86-eng
-#add_lunch_combo full_mips-eng
 
 function print_lunch_menu()
 {
@@ -446,7 +445,11 @@ function print_lunch_menu()
     echo
     echo "You're building on" $uname
     echo
-    echo "Lunch menu... pick a combo:"
+    if [ "z${liquid_DEVICES_ONLY}" != "z" ]; then
+       echo "Breakfast menu... pick a combo:"
+    else
+       echo "Lunch menu... pick a combo:"
+    fi
 
     local i=1
     local choice
@@ -456,8 +459,56 @@ function print_lunch_menu()
         i=$(($i+1))
     done
 
+    if [ "z${liquid_DEVICES_ONLY}" != "z" ]; then
+       echo "... and don't forget the bacon!"
+    fi
+
     echo
 }
+
+function brunch()
+{
+    breakfast $*
+    if [ $? -eq 0 ]; then
+        export FAST_BUILD=1
+        mka liquid
+    else
+        echo "No such item in brunch menu. Try 'breakfast'"
+        return 1
+    fi
+    return $?
+}
+
+function breakfast()
+{
+    target=$1
+    liquid_DEVICES_ONLY="true"
+    unset LUNCH_MENU_CHOICES
+    add_lunch_combo full-eng
+    for f in `/bin/ls vendor/liquid/vendorsetup.sh 2> /dev/null`
+        do
+            echo "including $f"
+            . $f
+        done
+    unset f
+
+    if [ $# -eq 0 ]; then
+        # No arguments, so let's have the full menu
+        lunch
+    else
+        echo "z$target" | grep -q "-"
+        if [ $? -eq 0 ]; then
+            # A buildtype was specified, assume a full device name
+            lunch $target
+        else
+            # This is probably just the liquid model name
+            lunch liquid_$target-userdebug
+        fi
+    fi
+    return $?
+}
+
+alias bib=breakfast
 
 function lunch()
 {
@@ -549,24 +600,13 @@ complete -F _lunch lunch
 # Run tapas with one ore more app names (from LOCAL_PACKAGE_NAME)
 function tapas()
 {
-    local arch=$(echo -n $(echo $* | xargs -n 1 echo | \grep -E '^(arm|x86|mips)$'))
     local variant=$(echo -n $(echo $* | xargs -n 1 echo | \grep -E '^(user|userdebug|eng)$'))
-    local apps=$(echo -n $(echo $* | xargs -n 1 echo | \grep -E -v '^(user|userdebug|eng|arm|x86|mips)$'))
+    local apps=$(echo -n $(echo $* | xargs -n 1 echo | \grep -E -v '^(user|userdebug|eng)$'))
 
-    if [ $(echo $arch | wc -w) -gt 1 ]; then
-        echo "tapas: Error: Multiple build archs supplied: $arch"
-        return
-    fi
     if [ $(echo $variant | wc -w) -gt 1 ]; then
         echo "tapas: Error: Multiple build variants supplied: $variant"
         return
     fi
-
-    local product=full
-    case $arch in
-      x86)   product=full_x86;;
-      mips)  product=full_mips;;
-    esac
     if [ -z "$variant" ]; then
         variant=eng
     fi
@@ -574,13 +614,50 @@ function tapas()
         apps=all
     fi
 
-    export TARGET_PRODUCT=$product
+    export TARGET_PRODUCT=full
     export TARGET_BUILD_VARIANT=$variant
     export TARGET_BUILD_TYPE=release
     export TARGET_BUILD_APPS=$apps
 
     set_stuff_for_environment
     printconfig
+}
+
+function eat()
+{
+    if [ "$OUT" ] ; then
+        MODVERSION=`sed -n -e'/ro\.cm\.version/s/.*=//p' $OUT/system/build.prop`
+        ZIPFILE=update-cm-$MODVERSION-signed.zip
+        ZIPPATH=$OUT/$ZIPFILE
+        if [ ! -f $ZIPPATH ] ; then
+            echo "Nothing to eat"
+            return 1
+        fi
+        adb start-server # Prevent unexpected starting server message from adb get-state in the next line
+        if [ $(adb get-state) != device -a $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) != 0 ] ; then
+            echo "No device is online. Waiting for one..."
+            echo "Please connect USB and/or enable USB debugging"
+            until [ $(adb get-state) = device -o $(adb shell busybox test -e /sbin/recovery 2> /dev/null; echo $?) = 0 ];do
+                sleep 1
+            done
+            echo "Device Found.."
+        fi
+        echo "Pushing $ZIPFILE to device"
+        if adb push $ZIPPATH /storage/sdcard0/ ; then
+            cat << EOF > /tmp/command
+--update_package=/sdcard/$ZIPFILE
+EOF
+            if adb push /tmp/command /cache/recovery/ ; then
+                echo "Rebooting into recovery for installation"
+                adb reboot recovery
+            fi
+            rm /tmp/command
+        fi
+    else
+        echo "Nothing to eat"
+        return 1
+    fi
+    return $?
 }
 
 function gettop
@@ -631,7 +708,7 @@ function findmakefile()
     local HERE=$PWD
     T=
     while [ \( ! \( -f $TOPFILE \) \) -a \( $PWD != "/" \) ]; do
-        T=`PWD= /bin/pwd`
+        T=$PWD
         if [ -f "$T/Android.mk" ]; then
             echo $T/Android.mk
             cd $HERE > /dev/null
@@ -771,9 +848,8 @@ function gdbclient()
    local ARCH=$(get_build_var TARGET_ARCH)
    local GDB
    case "$ARCH" in
-       x86) GDB=i686-linux-android-gdb;;
+       x86) GDB=i686-android-linux-gdb;;
        arm) GDB=arm-linux-androideabi-gdb;;
-       mips) GDB=mipsel-linux-android-gdb;;
        *) echo "Unknown arch $ARCH"; return 1;;
    esac
 
@@ -813,7 +889,7 @@ function gdbclient()
        fi
 
        echo >|"$OUT_ROOT/gdbclient.cmds" "set solib-absolute-prefix $OUT_SYMBOLS"
-       echo >>"$OUT_ROOT/gdbclient.cmds" "set solib-search-path $OUT_SO_SYMBOLS:$OUT_SO_SYMBOLS/hw:$OUT_SO_SYMBOLS/ssl/engines:$OUT_SO_SYMBOLS/drm:$OUT_SO_SYMBOLS/egl:$OUT_SO_SYMBOLS/soundfx"
+       echo >>"$OUT_ROOT/gdbclient.cmds" "set solib-search-path $OUT_SO_SYMBOLS:$OUT_SO_SYMBOLS/hw:$OUT_SO_SYMBOLS/ssl/engines"
        echo >>"$OUT_ROOT/gdbclient.cmds" "target remote $PORT"
        echo >>"$OUT_ROOT/gdbclient.cmds" ""
 
@@ -840,11 +916,6 @@ case `uname -s` in
         ;;
 esac
 
-function gettargetarch
-{
-    get_build_var TARGET_ARCH
-}
-
 function jgrep()
 {
     find . -name .repo -prune -o -name .git -prune -o  -type f -name "*\.java" -print0 | xargs -0 grep --color -n "$@"
@@ -864,7 +935,7 @@ case `uname -s` in
     Darwin)
         function mgrep()
         {
-            find -E . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -type f -iregex '.*/(Makefile|Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -print0 | xargs -0 grep --color -n "$@"
+            find -E . -name .repo -prune -o -name .git -prune -o  -type f -iregex '.*/(Makefile|Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -print0 | xargs -0 grep --color -n "$@"
         }
 
         function treegrep()
@@ -876,7 +947,7 @@ case `uname -s` in
     *)
         function mgrep()
         {
-            find . -name .repo -prune -o -name .git -prune -o -path ./out -prune -o -regextype posix-egrep -iregex '(.*\/Makefile|.*\/Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -type f -print0 | xargs -0 grep --color -n "$@"
+            find . -name .repo -prune -o -name .git -prune -o -regextype posix-egrep -iregex '(.*\/Makefile|.*\/Makefile\..*|.*\.make|.*\.mak|.*\.mk)' -type f -print0 | xargs -0 grep --color -n "$@"
         }
 
         function treegrep()
@@ -905,9 +976,8 @@ function tracedmdump()
         return
     fi
     local prebuiltdir=$(getprebuilt)
-    local arch=$(gettargetarch)
     local prebuiltextradir=$(getprebuiltextra)
-    local KERNEL=$T/prebuilts/qemu-kernel/$arch/vmlinux-qemu
+    local KERNEL=$T/prebuilt/android-arm/kernel/vmlinux-qemu
 
     local TRACE=$1
     if [ ! "$TRACE" ] ; then
@@ -959,7 +1029,7 @@ function runhat()
         shift 2
     fi
     local adbOptions=${adbTarget}
-    #echo adbOptions = ${adbOptions}
+    echo adbOptions = ${adbOptions}
 
     # runhat options
     local targetPid=$1
@@ -976,11 +1046,8 @@ function runhat()
     fi
 
     # issue "am" command to cause the hprof dump
-    local sdcard=$(adb shell echo -n '$EXTERNAL_STORAGE')
-    local devFile=$sdcard/hprof-$targetPid
-    #local devFile=/data/local/hprof-$targetPid
+    local devFile=/sdcard/hprof-$targetPid
     echo "Poking $targetPid and waiting for data..."
-    echo "Storing data at $devFile"
     adb ${adbOptions} shell am dumpheap $targetPid $devFile
     echo "Press enter when logcat shows \"hprof: heap dump completed\""
     echo -n "> "
@@ -1015,28 +1082,6 @@ function getbugreports()
         adb pull /sdcard/bugreports/${report} ${report}
         gunzip ${report}
     done
-}
-
-function getsdcardpath()
-{
-    adb ${adbOptions} shell echo -n \$\{EXTERNAL_STORAGE\}
-}
-
-function getscreenshotpath()
-{
-    echo "$(getsdcardpath)/Pictures/Screenshots"
-}
-
-function getlastscreenshot()
-{
-    local screenshot_path=$(getscreenshotpath)
-    local screenshot=`adb ${adbOptions} ls ${screenshot_path} | grep Screenshot_[0-9-]*.*\.png | sort -rk 3 | cut -d " " -f 4 | head -n 1`
-    if [ "$screenshot" = "" ]; then
-        echo "No screenshots found."
-        return
-    fi
-    echo "${screenshot}"
-    adb ${adbOptions} pull ${screenshot_path}/${screenshot}
 }
 
 function startviewserver()
@@ -1085,7 +1130,7 @@ function smoketest()
         return
     fi
 
-    (cd "$T" && mmm tests/SmokeTest) &&
+    (cd "$T" && make SmokeTest SmokeTestApp) &&
       adb uninstall com.android.smoketest > /dev/null &&
       adb uninstall com.android.smoketest.tests > /dev/null &&
       adb install $ANDROID_PRODUCT_OUT/data/app/SmokeTestApp.apk &&
@@ -1146,6 +1191,86 @@ function godir () {
         pathname=${lines[0]}
     fi
     cd $T/$pathname
+}
+
+function mka() {
+    case `uname -s` in
+        Darwin)
+            make -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+            ;;
+        *)
+            schedtool -B -n 1 -e ionice -n 1 make -j `cat /proc/cpuinfo | grep "^processor" | wc -l` "$@"
+            ;;
+    esac
+}
+
+function mbot() {
+    unset LUNCH_MENU_CHOICES
+    croot
+    ./vendor/liquid/bot/deploy.sh
+}
+
+function mkapush() {
+    # There's got to be a better way to do this stupid shit.
+    case `uname -s` in
+        Darwin)
+            if [ ! -f $ANDROID_PRODUCT_OUT/installed-files.txt ]; then
+                make -j `sysctl hw.ncpu|cut -d" " -f2` installed-file-list
+            fi
+            make -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+            ;;
+        *)
+            if [ ! -f $ANDROID_PRODUCT_OUT/installed-files.txt ]; then
+                schedtool -B -n 1 -e ionice -n 1 make -j `cat /proc/cpuinfo | grep "^processor" | wc -l` installed-file-list
+            fi
+            schedtool -B -n 1 -e ionice -n 1 make -j `cat /proc/cpuinfo | grep "^processor" | wc -l` "$@"
+            ;;
+    esac
+    case $@ in
+        *\ * )
+            echo $@ | awk 'gsub(/ /,"\n") {print}' | while read line; do
+                blackmagic=`sed -n "/$line/{p;q;}" $ANDROID_PRODUCT_OUT/installed-files.txt | awk {'print $2'}`
+                if [ `echo $blackmagic | cut -f3 -d "/" = framework ];
+                elif [ `echo $blackmagic | cut -f4 -d "/" = SystemUI.apk ]; then
+                    adb_stop=true
+                fi
+                adb remount
+                if [ $adb_stop = true ]; then
+                    adb shell stop
+                fi
+                adb push $ANDROID_PRODUCT_OUT$blackmagic $blackmagic
+                if [ $adb_stop = true ]; then
+                    adb shell start
+                fi
+            done
+            ;;
+        *)
+            blackmagic=`sed -n "/$@/{p;q;}" $ANDROID_PRODUCT_OUT/installed-files.txt | awk {'print $2'}`
+            if [ `echo $blackmagic | cut -f3 -d "/" = framework ];
+            elif [ `echo $blackmagic | cut -f4 -d "/" = SystemUI.apk ]; then
+                adb_stop=true
+            fi
+            adb remount
+            if [ $adb_stop = true ]; then
+                adb shell stop
+            fi
+            adb push $ANDROID_PRODUCT_OUT$blackmagic $blackmagic
+            if [ $adb_stop = true ]; then
+                adb shell start
+            fi
+            ;;
+    esac
+}
+
+function reposync() {
+    case `uname -s` in
+        Darwin)
+            repo sync -j 4 "$@"
+            ;;
+        *)
+            schedtool -B -n 1 -e ionice -n 1 repo sync -j 4 "$@"
+            ;;
+    esac
 }
 
 # Force JAVA_HOME to point to java 1.6 if it isn't already set

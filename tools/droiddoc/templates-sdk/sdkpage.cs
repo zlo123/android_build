@@ -87,8 +87,7 @@
   <tr>
     <td>Windows</td>
     <td>
-  <a onClick="_gaq.push(['_trackEvent', 'Tools', 'Download NDK', 'Link <' + <?cs var:ndk.win_download ?> + '>']);"
-     href="http://dl.google.com/android/ndk/<?cs var:ndk.win_download ?>"><?cs var:ndk.win_download ?></a>
+  <a href="http://dl.google.com/android/ndk/<?cs var:ndk.win_download ?>"><?cs var:ndk.win_download ?></a>
     </td>
     <td><?cs var:ndk.win_bytes ?> bytes</td>
     <td><?cs var:ndk.win_checksum ?></td>
@@ -96,8 +95,7 @@
   <tr class="alt-color">
     <td>Mac OS X (intel)</td>
     <td>
-  <a onClick="_gaq.push(['_trackEvent', 'Tools', 'Download NDK', 'Link <' + <?cs var:ndk.mac_download ?> + '>']);"
-     href="http://dl.google.com/android/ndk/<?cs var:ndk.mac_download ?>"><?cs var:ndk.mac_download ?></a>
+  <a href="http://dl.google.com/android/ndk/<?cs var:ndk.mac_download ?>"><?cs var:ndk.mac_download ?></a>
     </td>
     <td><?cs var:ndk.mac_bytes ?> bytes</td>
     <td><?cs var:ndk.mac_checksum ?></td>
@@ -105,8 +103,7 @@
   <tr>
     <td>Linux 32/64-bit (x86)</td>
     <td>
-  <a onClick="_gaq.push(['_trackEvent', 'Tools', 'Download NDK', 'Link <' + <?cs var:ndk.linux_download ?> + '>']);"
-     href="http://dl.google.com/android/ndk/<?cs var:ndk.linux_download ?>"><?cs var:ndk.linux_download ?></a>
+  <a href="http://dl.google.com/android/ndk/<?cs var:ndk.linux_download ?>"><?cs var:ndk.linux_download ?></a>
     </td>
     <td><?cs var:ndk.linux_bytes ?> bytes</td>
     <td><?cs var:ndk.linux_checksum ?></td>
@@ -150,7 +147,7 @@
   <tr>
     <td rowspan="2">Windows</td>
     <td>
-  <a onclick="onDownload(this,false)" href="http://dl.google.com/android/<?cs var:sdk.win_download
+  <a onclick="onDownload(this)" href="http://dl.google.com/android/<?cs var:sdk.win_download
 ?>"><?cs var:sdk.win_download ?></a>
     </td>
     <td><?cs var:sdk.win_bytes ?> bytes</td>
@@ -159,7 +156,7 @@
   <tr>
     <!-- blank TD from Windows rowspan -->
     <td>
-  <a onclick="onDownload(this,false)" id="win-sdk" href="http://dl.google.com/android/<?cs
+  <a onclick="onDownload(this)" id="win-sdk" href="http://dl.google.com/android/<?cs
 var:sdk.win_installer
 ?>"><?cs var:sdk.win_installer ?></a> (Recommended)
     </td>
@@ -169,7 +166,7 @@ var:sdk.win_installer
   <tr class="alt-color">
     <td>Mac OS X (intel)</td>
     <td>
-  <a onclick="onDownload(this,false)" id="mac-sdk" href="http://dl.google.com/android/<?cs
+  <a onclick="onDownload(this)" id="mac-sdk" href="http://dl.google.com/android/<?cs
 var:sdk.mac_download
 ?>"><?cs var:sdk.mac_download ?></a>
     </td>
@@ -179,7 +176,7 @@ var:sdk.mac_download
   <tr>
     <td>Linux (i386)</td>
     <td>
-  <a onclick="onDownload(this,false)" id="linux-sdk" href="http://dl.google.com/android/<?cs
+  <a onclick="onDownload(this)" id="linux-sdk" href="http://dl.google.com/android/<?cs
 var:sdk.linux_download
 ?>"><?cs var:sdk.linux_download ?></a>
     </td>
@@ -190,18 +187,12 @@ var:sdk.linux_download
   
   
 <script>
-  function onDownload(link,fromButton) {
+  function onDownload(link) {
     $("#filename").text($(link).html());
     $("#next-steps").fadeIn('slow');
     $("#intro").fadeOut('slow');
     $('.pax').slideUp();
     $('.reqs').slideUp();
-    // Deliver Analytics event
-    if (fromButton) {
-      _gaq.push(['_trackEvent', 'Tools', 'Download SDK', 'Button <' + text($(link).html()) + '>']);
-    } else {
-      _gaq.push(['_trackEvent', 'Tools', 'Download SDK', 'Link <' + text($(link).html()) + '>']);
-    }
   }
   
   
@@ -222,7 +213,7 @@ var:sdk.linux_download
     $('#not-supported').hide();
     $('#download-button').show();
     $('#download-button').text("Download the SDK for " + os);
-    $('#download-button').click(function() {onDownload($link.get());}).attr('href', $link.attr('href'),true);
+    $('#download-button').click(function() {onDownload($link.get());}).attr('href', $link.attr('href'));
   } else {
     $('.pax').show();
   }
