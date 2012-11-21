@@ -27,8 +27,8 @@ PRODUCT_PACKAGES := \
     Calendar \
     CertInstaller \
     DrmProvider \
-    Email \
-    Exchange \
+    Email2 \
+    Exchange2 \
     Gallery2 \
     LatinIME \
     Launcher2 \
@@ -41,6 +41,7 @@ PRODUCT_PACKAGES := \
     bluetooth-health \
     hostapd \
     wpa_supplicant.conf
+
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core.mk)
 
